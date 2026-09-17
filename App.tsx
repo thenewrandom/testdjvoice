@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PartyConfig, Track } from './types';
+import { PartyConfig, Track, Persona } from './types';
 import { TRACK_CATALOG } from './data/tracks';
 import { PERSONAS } from './data/personas';
 import { generateSetlist } from './services/aiService';
@@ -15,6 +15,9 @@ export default function App() {
   const [view, setView] = useState<'landing' | 'dashboard' | 'setlist' | 'player'>('landing');
   const [isLoading, setIsLoading] = useState(false);
   const [allTracks, setAllTracks] = useState<Track[]>(TRACK_CATALOG);
+  const [userPersonas, setUserPersonas] = useState<Persona[]>(() => {
+    try { return JSON.parse(localStorage.getItem('djcopilot_user_personas') || '[]') as Persona[]; } catch { return []; }
+  });
   const [setlist, setSetlist] = useState<Track[]>([]);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -31,7 +34,8 @@ export default function App() {
     useGeminiAi: true
   });
 
-  const activePersona = PERSONAS.find(p => p.id === config.persona) || PERSONAS[0];
+  const allPersonas = [...PERSONAS, ...userPersonas.filter(p => !PERSONAS.some(base => base.id === p.id))];
+  const activePersona = allPersonas.find(p => p.id === config.persona) || allPersonas[0];
 
   const handleLogin = () => {
     soundFx.playLaser();
@@ -123,6 +127,8 @@ export default function App() {
             onGenerate={handleGenerate}
             isLoading={isLoading}
             onAddCustomTrack={handleAddCustomTrack}
+            userPersonas={userPersonas}
+            setUserPersonas={setUserPersonas}
           />
         )}
 
@@ -150,6 +156,7 @@ export default function App() {
               setView('dashboard');
             }}
             isMuted={isMuted}
+            userPersonas={userPersonas}
           />
         )}
       </main>

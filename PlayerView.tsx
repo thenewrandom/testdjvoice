@@ -8,13 +8,15 @@ import {
 import { PartyConfig, Track, DjScript, LiveRequest } from '../types';
 import { PERSONAS } from '../data/personas';
 import { soundFx } from '../utils/audioEffects';
-import { generateScript, generateVoice } from '../services/aiService';
+import { generateScript } from '../services/aiService';
+import { djMix } from '../utils/djMixEngine';
 
 interface PlayerViewProps {
   config: PartyConfig;
   setlist: Track[];
   onExit: () => void;
   isMuted: boolean;
+  userPersonas: Array<import('../types').Persona>;
 }
 
 const ICON_MAP: Record<string, React.FC<{ className?: string; size?: number }>> = {
@@ -30,7 +32,8 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
   config,
   setlist,
   onExit,
-  isMuted
+  isMuted,
+  userPersonas
 }) => {
   const [status, setStatus] = useState<'generating' | 'intro' | 'playing' | 'speaking' | 'outro' | 'finished'>('generating');
   const [currentTrackIdx, setCurrentTrackIdx] = useState(0);
@@ -51,11 +54,12 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
   const [copiedRecap, setCopiedRecap] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const advanceRef = useRef<(() => void) | null>(null);
   const hasStarted = useRef(false);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const persona = PERSONAS.find(p => p.id === config.persona) || PERSONAS[0];
+  const allPersonas = [...PERSONAS, ...userPersonas.filter(p => !PERSONAS.some(base => base.id === p.id))];
+  const persona = allPersonas.find(p => p.id === config.persona) || allPersonas[0];
   const PersonaIcon = ICON_MAP[persona.iconName] || Music;
 
   // Process audio URL into direct embed or playable media
@@ -84,57 +88,76 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
     }
   };
 
-  // Generate a realistic server-side AI voice, with browser TTS as a resilient fallback.
-  const speakText = async (text: string): Promise<void> => {
+  const speakText = (text: string): Promise<void> => {
     setSpeechTranscript(text);
     if (config.autoDucking) setAudioVolume(0.25);
 
-    if (voiceAudioRef.current) {
-      voiceAudioRef.current.pause();
-      voiceAudioRef.current = null;
-    }
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (config.autoDucking) setAudioVolume(0.9);
+        resolve();
+      };
+      advanceRef.current = () => {
+        if (audioRef.current) audioRef.current.pause();
+        if (voiceAudioRef.current) { voiceAudioRef.current.pause(); voiceAudioRef.current = null; }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        finish();
+      };
 
-    const aiAudio = await generateVoice(text, persona);
-    if (aiAudio && !isMuted) {
-      voiceAudioRef.current = aiAudio;
-      return new Promise(resolve => {
-        let finished = false;
-        const done = () => {
-          if (finished) return;
-          finished = true;
-          if (config.autoDucking) setAudioVolume(0.9);
-          voiceAudioRef.current = null;
-          resolve();
-        };
-        aiAudio.onended = done;
-        aiAudio.onerror = done;
-        aiAudio.play().catch(done);
-      });
-    }
+      if (isMuted) { finish(); return; }
 
-    if (!('speechSynthesis' in window) || isMuted) {
-      await new Promise(r => setTimeout(r, 2200));
-      if (config.autoDucking) setAudioVolume(0.9);
-      return;
-    }
+      if (persona.voiceId) {
+        fetch('/api/voice-tts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voiceId: persona.voiceId, text, speed: persona.rate })
+        })
+          .then(async response => {
+            if (!response.ok) throw new Error(await response.text());
+            return response.blob();
+          })
+          .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            voiceAudioRef.current = audio;
+            audio.onended = () => { URL.revokeObjectURL(url); finish(); };
+            audio.onerror = finish;
+            audio.play().catch(finish);
+          })
+          .catch(error => {
+            console.warn('Custom voice TTS failed; falling back to browser speech.', error);
+            speakBrowser();
+          });
+        return;
+      }
 
-    await new Promise<void>(resolve => {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.pitch = persona.pitch;
-      utterance.rate = persona.rate;
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      window.speechSynthesis.speak(utterance);
+      speakBrowser();
+
+      function speakBrowser() {
+        if (!('speechSynthesis' in window)) { setTimeout(finish, 3500); return; }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.pitch = persona.pitch;
+        utterance.rate = persona.rate;
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          const isFemale = ['retro', 'chill'].includes(persona.id);
+          const voiceMatches = voices.filter(v => v.name.toLowerCase().includes(isFemale ? 'female' : 'male'));
+          if (voiceMatches.length > 0) utterance.voice = voiceMatches[0];
+        }
+        utterance.onend = finish;
+        utterance.onerror = finish;
+        window.speechSynthesis.speak(utterance);
+      }
     });
-    if (config.autoDucking) setAudioVolume(0.9);
   };
 
   const handleSkip = () => {
     soundFx.playScratch();
     if (advanceRef.current) advanceRef.current();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    if (voiceAudioRef.current) { voiceAudioRef.current.pause(); voiceAudioRef.current = null; }
     if (audioRef.current) audioRef.current.pause();
   };
 
@@ -196,11 +219,13 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
               const randomFx = config.transitions[Math.floor(Math.random() * config.transitions.length)];
               setNowPlayingStr(`DJ Transition: ${randomFx}...`);
               if (!isMuted) {
+                djMix.applyTransition(randomFx as any, audioRef.current, setlist[i].bpm, setlist[i + 1].bpm);
                 if (randomFx.includes('Scratch')) soundFx.playScratch();
                 else if (randomFx.includes('Laser')) soundFx.playLaser();
+                else if (randomFx.includes('EQ')) soundFx.playRewind();
                 else soundFx.playRewind();
               }
-              await new Promise(r => setTimeout(r, 1400));
+              await new Promise(r => setTimeout(r, randomFx.includes('Pitch') ? 1800 : 1400));
               setIsTransitioning(false);
             }
 
@@ -233,7 +258,6 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
     return () => {
       isMounted = false;
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      if (voiceAudioRef.current) voiceAudioRef.current.pause();
     };
   }, []);
 
@@ -471,7 +495,10 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
               <div className="w-full max-w-md mx-auto min-h-[3.5rem] flex flex-col justify-center items-center mb-6">
                 {status === 'playing' && currentMedia.type === 'audio' && (
                   <audio
-                    ref={audioRef}
+                    ref={(el) => {
+                      audioRef.current = el;
+                      if (el) djMix.connect(el);
+                    }}
                     src={currentMedia.url}
                     controls
                     autoPlay

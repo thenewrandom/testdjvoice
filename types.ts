@@ -1,4 +1,7 @@
 export interface Persona {
+  voiceId?: string;
+  voiceProvider?: 'elevenlabs';
+  isUserVoice?: boolean;
   id: string;
   name: string;
   genre: string;
@@ -13,8 +16,6 @@ export interface Persona {
   bio: string;
   catchphrases: string[];
   defaultBpmRange: [number, number];
-  voiceName: string;
-  voiceStyle: string;
 }
 
 export interface Track {
