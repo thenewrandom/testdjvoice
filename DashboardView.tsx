@@ -8,6 +8,7 @@ import { PartyConfig, MusicSource, Track } from '../types';
 import { PERSONAS } from '../data/personas';
 import { soundFx } from '../utils/audioEffects';
 import { VoiceTextInput } from './VoiceTextInput';
+import { authorizeAppleMusic, fetchAppleMusicLibrary, fetchSpotifyCrate, getSpotifyProfile } from '../services/musicSourceService';
 
 interface DashboardViewProps {
   config: PartyConfig;
@@ -15,6 +16,7 @@ interface DashboardViewProps {
   onGenerate: () => void;
   isLoading: boolean;
   onAddCustomTrack: (track: Track) => void;
+  onAddTracks: (tracks: Track[]) => void;
   userPersonas: Array<import('../types').Persona>;
   setUserPersonas: React.Dispatch<React.SetStateAction<Array<import('../types').Persona>>>;
 }
@@ -34,6 +36,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onGenerate,
   isLoading,
   onAddCustomTrack,
+  onAddTracks,
   userPersonas,
   setUserPersonas
 }) => {
@@ -45,6 +48,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [customBpm, setCustomBpm] = useState('125');
   const [authNotification, setAuthNotification] = useState<string | null>(null);
   const [authProvider, setAuthProvider] = useState<MusicSource | null>(null);
+  const [connectedAccount, setConnectedAccount] = useState<Record<string, string>>(() => { try { return JSON.parse(localStorage.getItem('djcopilot_connected_accounts') || '{}'); } catch { return {}; } });
+  const [isConnectingMusic, setIsConnectingMusic] = useState(false);
   const [showVoiceClone, setShowVoiceClone] = useState(false);
   const [voiceName, setVoiceName] = useState('');
   const [voiceDescription, setVoiceDescription] = useState('My personal DJ voice');
@@ -60,9 +65,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.data?.type !== 'djcopilot:spotify-auth') return;
       if (event.data.ok) {
-        if (!config.sources.includes('Spotify')) toggleSource('Spotify');
-        setAuthProvider(null);
-        setAuthNotification('Spotify connected successfully. Your authorized music crate is ready.');
+        const token = localStorage.getItem('spotify_access_token');
+        setIsConnectingMusic(true);
+        Promise.all([token ? fetchSpotifyCrate(token, 100) : Promise.resolve({ tracks: [], playlists: [] }), token ? getSpotifyProfile(token) : Promise.resolve(null)])
+          .then(([crate, profile]) => {
+            onAddTracks(crate.tracks.map(t => ({ ...t, source: 'Spotify' as MusicSource, externalUrl: t.audioUrl })));
+            if (!config.sources.includes('Spotify')) toggleSource('Spotify');
+            const name = profile?.display_name || profile?.id || 'Spotify account';
+            const next = { ...connectedAccount, Spotify: name };
+            setConnectedAccount(next);
+            localStorage.setItem('djcopilot_connected_accounts', JSON.stringify(next));
+            setAuthProvider(null);
+            setAuthNotification(`Spotify connected — ${crate.tracks.length} songs imported from your library/playlists.`);
+          })
+          .catch(err => setAuthNotification(`Spotify connected, but songs could not be imported: ${err instanceof Error ? err.message : 'Unknown error'}`))
+          .finally(() => setIsConnectingMusic(false));
       } else {
         setAuthNotification(`Spotify authorization failed: ${event.data.error || 'Unknown error'}`);
       }
@@ -149,7 +166,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
   };
 
-  const finishProviderConnection = () => {
+  const finishProviderConnection = async () => {
     if (!authProvider) return;
     if (authProvider === 'Local Drive') {
       fileInputRef.current?.click();
@@ -160,7 +177,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       startSpotifyLogin();
       return;
     }
-    setAuthNotification(`${authProvider} login is ready for MusicKit configuration. Add the Apple Music developer token to enable the online authorization dialog.`);
+    setIsConnectingMusic(true);
+    try {
+      // Apple Music and legacy iTunes access use the same Apple Music/MusicKit authorization.
+      // Open Apple's music site in a separate browser window as requested, then authorize this app.
+      window.open('https://music.apple.com/', 'djcopilot-apple-music', 'width=520,height=760,resizable=yes,scrollbars=yes');
+      const { musicKit, musicUserToken } = await authorizeAppleMusic();
+      localStorage.setItem('apple_music_user_token', musicUserToken);
+      const tracks = await fetchAppleMusicLibrary(musicKit, 100);
+      const provider = authProvider;
+      onAddTracks(tracks.map(t => ({ ...t, source: provider, externalUrl: t.audioUrl })));
+      if (!config.sources.includes(provider)) toggleSource(provider);
+      const next = { ...connectedAccount, [provider]: 'Apple Music account' };
+      setConnectedAccount(next);
+      localStorage.setItem('djcopilot_connected_accounts', JSON.stringify(next));
+      setAuthProvider(null);
+      setAuthNotification(`${provider} connected — ${tracks.length} songs imported into your crate.`);
+    } catch (error) {
+      setAuthNotification(`${authProvider} connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsConnectingMusic(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,7 +384,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-start justify-between mb-5">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-100">Connect {authProvider}</h3>
-                <p className="text-xs text-slate-400 mt-1">Sign in securely through the music provider. DJ Copilot does not ask for your provider password.</p>
+                <p className="text-xs text-slate-400 mt-1">Sign in in the provider's own window. DJ Copilot never asks for your music-service password.</p>
               </div>
               <button onClick={() => setAuthProvider(null)} className="p-2 rounded-lg hover:bg-slate-800 text-slate-400"><X className="w-4 h-4" /></button>
             </div>
@@ -358,8 +395,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <button onClick={finishProviderConnection} className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold">Log In / Authorize {authProvider}</button>
-                <p className="text-[11px] text-slate-500 leading-relaxed">Spotify uses OAuth 2.0 + PKCE. Apple Music/iTunes uses Apple's MusicKit authorization flow once the developer token is configured.</p>
+                <button onClick={finishProviderConnection} disabled={isConnectingMusic} className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold disabled:opacity-60 flex items-center justify-center gap-2">{isConnectingMusic ? <><Loader className="w-4 h-4 animate-spin" /> Connecting &amp; Importing…</> : <> <LinkIcon className="w-4 h-4" /> Log In / Authorize {authProvider}</>}</button>
+                <p className="text-[11px] text-slate-500 leading-relaxed">Spotify uses OAuth 2.0 + PKCE and imports saved tracks/playlists. Apple Music and iTunes use Apple's MusicKit authorization and import your Apple Music library. Local Drive uses your browser file picker.</p>
               </div>
             )}
           </div>

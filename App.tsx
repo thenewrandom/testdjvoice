@@ -25,7 +25,7 @@ export default function App() {
     sources: ['Sound Benders Vault'],
     persona: 'hype',
     interactionLevel: 6,
-    transitions: ['Pitch/Tempo Sync', 'Scratching', 'EQ Blending'],
+    transitions: ['Pitch/Tempo Sync', 'Scratching', 'EQ Blending', 'Laser Sweeps'],
     partyType: '',
     guestOfHonor: '',
     mood: 'Unstoppable High Energy',
@@ -91,7 +91,16 @@ export default function App() {
   };
 
   const handleAddCustomTrack = (newTrack: Track) => {
-    setAllTracks(prev => [newTrack, ...prev]);
+    setAllTracks(prev => [newTrack, ...prev.filter(t => t.id !== newTrack.id)]);
+  };
+
+  const handleAddTracks = (tracks: Track[]) => {
+    setAllTracks(prev => {
+      const incoming = tracks.filter(Boolean);
+      const byId = new Map(prev.map(track => [track.id, track]));
+      incoming.forEach(track => byId.set(track.id, track));
+      return Array.from(byId.values());
+    });
   };
 
   const handleToggleMute = () => {
@@ -127,6 +136,7 @@ export default function App() {
             onGenerate={handleGenerate}
             isLoading={isLoading}
             onAddCustomTrack={handleAddCustomTrack}
+            onAddTracks={handleAddTracks}
             userPersonas={userPersonas}
             setUserPersonas={setUserPersonas}
           />

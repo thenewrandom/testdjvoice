@@ -29,6 +29,8 @@ export interface Track {
   energy: number; // 1-10
   genre: string;
   tags: string[];
+  source?: MusicSource;
+  externalUrl?: string;
 }
 
 export type MusicSource = 'Spotify' | 'Apple Music' | 'iTunes' | 'Local Drive' | 'Sound Benders Vault';

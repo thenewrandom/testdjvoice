@@ -77,6 +77,9 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
     // Spotify
     const spotMatch = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/);
     if (spotMatch) return { type: 'spotify', url: `https://open.spotify.com/embed/track/${spotMatch[1]}?utm_source=generator` };
+
+    // Apple Music / iTunes
+    if (/music\.apple\.com\//i.test(url)) return { type: 'apple', url };
     
     return { type: 'audio', url };
   };
@@ -513,6 +516,11 @@ export const PlayerView: React.FC<PlayerViewProps> = ({
                 {status === 'playing' && currentMedia.type === 'spotify' && (
                   <div className="w-full rounded-xl overflow-hidden shadow-lg">
                     <iframe src={currentMedia.url} width="100%" height="80" frameBorder="0" allow="encrypted-media" />
+                  </div>
+                )}
+                {status === 'playing' && currentMedia.type === 'apple' && (
+                  <div className="w-full rounded-xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950">
+                    <iframe src={currentMedia.url} width="100%" height="100" frameBorder="0" allow="autoplay; encrypted-media" title="Apple Music" />
                   </div>
                 )}
               </div>
