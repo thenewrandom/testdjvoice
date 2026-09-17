@@ -3,8 +3,6 @@ import { Persona } from '../types';
 export const PERSONAS: Persona[] = [
   {
     id: 'hype',
-    voiceName: 'Puck',
-    voiceStyle: 'high-energy festival MC, confident, punchy and excited',
     name: 'Hi Risk',
     genre: 'EDM / Club',
     mood: 'High Energy',
@@ -26,8 +24,6 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'chill',
-    voiceName: 'Kore',
-    voiceStyle: 'smooth late-night lounge DJ, warm, relaxed and intimate',
     name: 'Lounge Lizard',
     genre: 'Lo-Fi / Chill / Deep House',
     mood: 'Relaxed & Sophisticated',
@@ -49,8 +45,6 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'hiphop',
-    voiceName: 'Charon',
-    voiceStyle: 'cool urban radio DJ, rhythmic, confident and conversational',
     name: 'Flow God',
     genre: 'Hip Hop / Trap / R&B',
     mood: 'Cool & Smooth',
@@ -72,8 +66,6 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'retro',
-    voiceName: 'Aoede',
-    voiceStyle: 'bright retro dance-radio host, playful, stylish and upbeat',
     name: 'Retro',
     genre: '80s / 90s Pop & Disco',
     mood: 'Classic Nostalgia',
@@ -95,8 +87,6 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'techno',
-    voiceName: 'Orus',
-    voiceStyle: 'futuristic techno DJ, controlled, deep and hypnotic',
     name: 'Quantum',
     genre: 'Cyberpunk / Techno / Synthwave',
     mood: 'Futuristic & Hypnotic',
@@ -118,8 +108,6 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'country',
-    voiceName: 'Fenrir',
-    voiceStyle: 'warm country radio host, friendly, grounded and spirited',
     name: 'Country Star',
     genre: 'Country / Southern Rock / Folk',
     mood: 'Down Home & Heartfelt',

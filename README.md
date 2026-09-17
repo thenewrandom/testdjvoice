@@ -1,34 +1,27 @@
-# DJ Copilot AI Pro
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-AI-powered browser DJ booth built with React, Vite, Tailwind CSS and Gemini.
+# Run and deploy your AI Studio app
 
-## What's upgraded
+This contains everything you need to run your app locally.
 
-- Server-side Gemini DJ script generation through `/api/dj-script`.
-- Realistic Gemini neural TTS through `/api/dj-tts`, replacing browser-only computer voices when the API is configured.
-- Persona-specific voice selection and performance direction.
-- Browser speech remains as a fallback if Gemini TTS is unavailable.
-- API keys are kept server-side instead of shipping `GEMINI_API_KEY` to the browser.
-- Vercel-ready Vite configuration.
-- Smarter local setlist selection using persona genre, BPM range, energy and Sound Benders priority.
+View your app in AI Studio: https://ai.studio/apps/5f12a67f-3b7f-4a27-ad3d-9c582f78fea4
 
-## Run locally
+## Run Locally
 
-```bash
-npm install
-npm run dev
-```
+**Prerequisites:**  Node.js
 
-Create `.env` from `.env.example` and provide `GEMINI_API_KEY`.
 
-## Vercel deployment
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
 
-Import this project into Vercel. Vercel detects Vite and builds the static frontend into `dist`; the `api/` TypeScript files become serverless endpoints.
 
-Add these Environment Variables in the Vercel project settings:
+## Personal Voice Personas
 
-- `GEMINI_API_KEY` — required
-- `GEMINI_TEXT_MODEL` — optional, defaults to `gemini-2.5-pro`
-- `GEMINI_TTS_MODEL` — optional, defaults to `gemini-2.5-flash-preview-tts`
+DJ Copilot can create a personal AI DJ voice persona from a clear recording/upload. Configure `ELEVENLABS_API_KEY` as a **server-side Vercel Environment Variable**. The browser never receives the API key. Personal persona metadata and the provider voice ID are saved in the browser so the new voice remains available in the AI DJ Persona selector on that device.
 
-Do not commit `.env` or expose the Gemini key through a `VITE_` variable.
+For the cleanest instant clone, use roughly 1–2 minutes of a single speaker with minimal background noise or room reverb.
