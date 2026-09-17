@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { VoiceTextInput } from './VoiceTextInput';
 import { 
   ListMusic, ArrowLeft, Plus, X, Trash2, Play, Loader, 
   Music, ArrowUp, ArrowDown, Volume2, VolumeX, Sparkles, Shuffle, ShieldAlert
@@ -182,27 +181,27 @@ export const SetlistEditor: React.FC<SetlistEditorProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <VoiceTextInput
+            <input
               type="text"
               required
               placeholder="Song Title *"
               value={newTitle}
-              onValueChange={setNewTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
               className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 focus:border-cyan-400 outline-none"
             />
-            <VoiceTextInput
+            <input
               type="text"
               placeholder="Artist Name"
               value={newArtist}
-              onValueChange={setNewArtist}
+              onChange={(e) => setNewArtist(e.target.value)}
               className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 focus:border-cyan-400 outline-none"
             />
-            <VoiceTextInput
+            <input
               type="text"
               required
               placeholder="Audio URL (.mp3, voca.ro, youtube) *"
               value={newUrl}
-              onValueChange={setNewUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
               className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 focus:border-cyan-400 outline-none"
             />
           </div>

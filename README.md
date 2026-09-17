@@ -1,27 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# DJ Copilot AI Pro
 
-# Run and deploy your AI Studio app
+AI-powered browser DJ booth built with React, Vite, Tailwind CSS and Gemini.
 
-This contains everything you need to run your app locally.
+## What's upgraded
 
-View your app in AI Studio: https://ai.studio/apps/5f12a67f-3b7f-4a27-ad3d-9c582f78fea4
+- Server-side Gemini DJ script generation through `/api/dj-script`.
+- Realistic Gemini neural TTS through `/api/dj-tts`, replacing browser-only computer voices when the API is configured.
+- Persona-specific voice selection and performance direction.
+- Browser speech remains as a fallback if Gemini TTS is unavailable.
+- API keys are kept server-side instead of shipping `GEMINI_API_KEY` to the browser.
+- Vercel-ready Vite configuration.
+- Smarter local setlist selection using persona genre, BPM range, energy and Sound Benders priority.
 
-## Run Locally
+## Run locally
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+Create `.env` from `.env.example` and provide `GEMINI_API_KEY`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Vercel deployment
 
+Import this project into Vercel. Vercel detects Vite and builds the static frontend into `dist`; the `api/` TypeScript files become serverless endpoints.
 
-## Personal Voice Personas
+Add these Environment Variables in the Vercel project settings:
 
-DJ Copilot can create a personal AI DJ voice persona from a clear recording/upload. Configure `ELEVENLABS_API_KEY` as a **server-side Vercel Environment Variable**. The browser never receives the API key. Personal persona metadata and the provider voice ID are saved in the browser so the new voice remains available in the AI DJ Persona selector on that device.
+- `GEMINI_API_KEY` — required
+- `GEMINI_TEXT_MODEL` — optional, defaults to `gemini-2.5-pro`
+- `GEMINI_TTS_MODEL` — optional, defaults to `gemini-2.5-flash-preview-tts`
 
-For the cleanest instant clone, use roughly 1–2 minutes of a single speaker with minimal background noise or room reverb.
+Do not commit `.env` or expose the Gemini key through a `VITE_` variable.

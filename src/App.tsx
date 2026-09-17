@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PartyConfig, Persona, Track } from './types';
+import { PartyConfig, Track } from './types';
 import { TRACK_CATALOG } from './data/tracks';
 import { PERSONAS } from './data/personas';
 import { generateSetlist } from './services/aiService';
@@ -17,14 +17,6 @@ export default function App() {
   const [allTracks, setAllTracks] = useState<Track[]>(TRACK_CATALOG);
   const [setlist, setSetlist] = useState<Track[]>([]);
   const [isMuted, setIsMuted] = useState(false);
-  const [userPersonas, setUserPersonas] = useState<Persona[]>(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('djcopilot_user_personas') || '[]');
-      return Array.isArray(stored) ? stored : [];
-    } catch {
-      return [];
-    }
-  });
 
   const [config, setConfig] = useState<PartyConfig>({
     sources: ['Sound Benders Vault'],
@@ -39,8 +31,7 @@ export default function App() {
     useGeminiAi: true
   });
 
-  const personas = [...PERSONAS, ...userPersonas.filter(p => !PERSONAS.some(base => base.id === p.id))];
-  const activePersona = personas.find(p => p.id === config.persona) || PERSONAS[0];
+  const activePersona = PERSONAS.find(p => p.id === config.persona) || PERSONAS[0];
 
   const handleLogin = () => {
     soundFx.playLaser();
@@ -99,13 +90,6 @@ export default function App() {
     setAllTracks(prev => [newTrack, ...prev]);
   };
 
-  const handleAddTracks = (tracks: Track[]) => {
-    setAllTracks(prev => {
-      const existingIds = new Set(prev.map(track => track.id));
-      return [...tracks.filter(track => !existingIds.has(track.id)), ...prev];
-    });
-  };
-
   const handleToggleMute = () => {
     setIsMuted(prev => !prev);
   };
@@ -139,9 +123,6 @@ export default function App() {
             onGenerate={handleGenerate}
             isLoading={isLoading}
             onAddCustomTrack={handleAddCustomTrack}
-            onAddTracks={handleAddTracks}
-            userPersonas={userPersonas}
-            setUserPersonas={setUserPersonas}
           />
         )}
 
@@ -169,7 +150,6 @@ export default function App() {
               setView('dashboard');
             }}
             isMuted={isMuted}
-            userPersonas={userPersonas}
           />
         )}
       </main>
